@@ -3,8 +3,8 @@ from __future__ import annotations
 import traceback
 from pathlib import Path
 from urllib.parse import urlparse
+import os
 
-from dotenv import dotenv_values
 from google import genai
 from google.genai import types
 
@@ -13,11 +13,34 @@ MODEL_NAME = "gemini-2.5-flash"
 
 
 def load_api_key() -> str:
-    values = dotenv_values(Path(__file__).resolve().with_name(".env"))
-    api_key = (values.get("GOOGLE_API_KEY") or values.get("GEMINI_API_KEY") or "").strip()
-    if not api_key:
-        raise RuntimeError("No Gemini API key found in .env")
-    return api_key
+    # Prefer environment variables and Streamlit secrets, fall back to .env for local testing
+    # 1) streamlit secrets
+    try:
+        import streamlit as st
+
+        secret_val = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY") or "").strip()
+        if secret_val:
+            return secret_val
+    except Exception:
+        pass
+
+    # 2) environment variables
+    api_key = (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY") or "").strip()
+    if api_key:
+        return api_key
+
+    # 3) .env file (development convenience)
+    try:
+        from dotenv import dotenv_values  # type: ignore
+
+        values = dotenv_values(Path(__file__).resolve().with_name(".env"))
+        api_key = (values.get("GOOGLE_API_KEY") or values.get("GEMINI_API_KEY") or "").strip()
+        if api_key:
+            return api_key
+    except Exception:
+        pass
+
+    raise RuntimeError("No Gemini API key found in environment, Streamlit secrets, or .env")
 
 
 def mask_key(api_key: str) -> str:

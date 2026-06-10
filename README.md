@@ -1,6 +1,18 @@
 # hackathon2
 
+## Gemini setup
 
+Place your Gemini API key in the project root `.env` file at `c:\Users\ASUS\hackathon2\.env`.
+
+Use one of these names:
+
+```env
+GEMINI_API_KEY=your_actual_api_key_here
+# or
+GOOGLE_API_KEY=your_actual_api_key_here
+```
+
+The app reads `GEMINI_API_KEY` first, then `GOOGLE_API_KEY`. The key must be a valid Google API key for the Generative Language / Gemini API, not an OAuth access token.
 
 ## Getting started
 

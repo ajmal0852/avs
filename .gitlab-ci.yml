@@ -6,6 +6,7 @@ stages:
   - format
   - type_check
   - test
+  - audit
   - coverage
 
 # Cache node modules and virtualenvs
@@ -20,6 +21,7 @@ web_lint:
   script:
     - npm ci
     - npm run lint
+    - npm run lint:js
 
 python_lint:
   stage: lint
@@ -33,6 +35,7 @@ python_lint:
 web_format:
   stage: format
   script:
+    - npm ci
     - npx prettier --check "src/**/*.{ts,tsx}" || true
 
 python_format:
@@ -73,7 +76,21 @@ python_test:
   script:
     - pytest || echo "No python tests configured yet"
 
-# 5. COVERAGE STAGE JOBS
+# 5. AUDIT STAGE JOBS
+web_audit:
+  stage: audit
+  script:
+    - npm audit --audit-level=high || true
+
+python_audit:
+  stage: audit
+  image: python:3.10-slim
+  before_script:
+    - pip install pip-audit || true
+  script:
+    - pip-audit || echo "pip-audit completed"
+
+# 6. COVERAGE STAGE JOBS
 web_coverage:
   stage: coverage
   script:

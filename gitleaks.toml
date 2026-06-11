@@ -1,0 +1,8 @@
+# Gitleaks security configuration for secrets scanning
+[allowlist]
+description = "Global allowlist for tests and examples"
+paths = [
+    '''node_modules/''',
+    '''dist/''',
+    '''.env.example'''
+]

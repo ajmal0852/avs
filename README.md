@@ -18,8 +18,24 @@ The Streamlit frontend and the Gemini backend are fully localized:
 - **Language Selector**: Native selectors in the Streamlit sidebar (English, हिन्दी, తెలుగు) persisted through `st.session_state`.
 - **Localized Gemini Output**: Evaluation feedback, strengths, and recommendations are returned directly in the target language.
 
+## AI Provider Architecture & Configuration
+
+The application supports multiple AI inference engines:
+- **Google Gemini API**: Runs cloud-based evaluation. Resolves the Google API key with the following priority order:
+  1. Secure **BYOK** (Bring Your Own Key) input securely in the Streamlit UI (purely in-memory).
+  2. Streamlit Secrets configuration (`st.secrets["GEMINI_API_KEY"]` or `st.secrets["GOOGLE_API_KEY"]`).
+  3. System environment variables (`GEMINI_API_KEY` or `os.getenv("GOOGLE_API_KEY")`).
+- **Ollama (Local Inference)**: Executes analysis entirely on your machine.
+  - Automatically queries available models from `GET /api/tags` to populate a dropdown selection.
+  - If Ollama is unreachable, analysis is safely disabled with an option to manually switch back to Gemini API.
+
+### Local Ollama Setup
+1. Make sure Ollama is installed and running (`ollama serve`).
+2. Download a model of choice, e.g. `ollama pull llama3.2`.
+3. In the sidebar panel under **AI Provider Settings**, choose **Ollama**, specify the URL (default: `http://localhost:11434`), select the model, and click **Test Connection** to enable analysis.
 
 ## Installation
+
 
 To configure the project on your local environment:
 

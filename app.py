@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import os
 from typing import Iterable
 
 import streamlit as st
@@ -8,6 +9,7 @@ import streamlit as st
 from analyzer import ResumeAnalysis, analyze_resume_vs_jd
 from parser import extract_text
 from i18n import translate as _
+from providers import get_provider
 
 
 st.set_page_config(
@@ -191,8 +193,133 @@ def main() -> None:
     def t(key: str, default: str = "") -> str:
         return _(st.session_state.language, key, default)
 
-    inject_styles()
+    # ----------------------------------------------------
+    # AI Provider Settings Section
+    # ----------------------------------------------------
+    st.sidebar.markdown("---")
+    st.sidebar.subheader(t("provider_settings_title", "AI Provider Settings"))
 
+    # Provider name selection
+    if "provider_name" not in st.session_state:
+        st.session_state.provider_name = "Gemini API"
+
+    selected_provider = st.sidebar.selectbox(
+        t("provider_label", "AI Provider"),
+        options=["Gemini API", "Ollama"],
+        index=0 if st.session_state.provider_name == "Gemini API" else 1
+    )
+    st.session_state.provider_name = selected_provider
+
+    user_gemini_key = ""
+    ollama_url = "http://localhost:11434"
+    ollama_model = "llama3.2"
+
+    if selected_provider == "Gemini API":
+        user_gemini_key = st.sidebar.text_input(
+            t("byok_label", "Gemini API Key (BYOK)"),
+            value=st.session_state.get("user_gemini_key", ""),
+            type="password",
+            placeholder=t("byok_placeholder", "Enter your Gemini API key (optional)...")
+        )
+        st.session_state.user_gemini_key = user_gemini_key
+    elif selected_provider == "Ollama":
+        ollama_url = st.sidebar.text_input(
+            t("ollama_url_label", "Ollama Base URL"),
+            value=st.session_state.get("ollama_url", "http://localhost:11434")
+        )
+        st.session_state.ollama_url = ollama_url
+
+        # Attempt to dynamically query installed models
+        from providers.ollama_provider import OllamaProvider
+        temp_prov = OllamaProvider(base_url=ollama_url)
+        installed_models = temp_prov.get_installed_models()
+
+        if installed_models:
+            default_model = st.session_state.get("ollama_model", "llama3.2")
+            default_idx = 0
+            for idx, model_item in enumerate(installed_models):
+                if model_item == default_model or model_item.startswith(f"{default_model}:"):
+                    default_idx = idx
+                    break
+
+            ollama_model = st.sidebar.selectbox(
+                t("ollama_model_label", "Ollama Model"),
+                options=installed_models,
+                index=default_idx
+            )
+        else:
+            # Fallback warning if unreachable
+            st.sidebar.warning(t("err_ollama_unavailable", "Ollama is currently unreachable. Please check your URL/service or switch providers."))
+            ollama_model = st.sidebar.text_input(
+                t("ollama_model_label", "Ollama Model"),
+                value=st.session_state.get("ollama_model", "llama3.2")
+            )
+        st.session_state.ollama_model = ollama_model
+
+    # Resolve active Gemini API key using priority order
+    def get_resolved_gemini_key() -> str | None:
+        if user_gemini_key.strip():
+            return user_gemini_key.strip()
+        try:
+            secrets_val = (st.secrets.get("GEMINI_API_KEY") or st.secrets.get("GOOGLE_API_KEY") or "").strip()
+            if secrets_val:
+                return secrets_val
+        except Exception:
+            pass
+        return (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip()
+
+    # Construct active provider using resolved parameters
+    gemini_key = get_resolved_gemini_key() if selected_provider == "Gemini API" else None
+    active_provider = get_provider(
+        provider_name=selected_provider,
+        gemini_key=gemini_key,
+        ollama_url=ollama_url,
+        ollama_model=ollama_model
+    )
+
+    # Test Connection mechanism
+    if "conn_status" not in st.session_state:
+        st.session_state.conn_status = None
+
+    # Reset status if configurations change to require a fresh test
+    config_fingerprint = f"{selected_provider}_{user_gemini_key}_{ollama_url}_{ollama_model}"
+    if st.session_state.get("config_fingerprint") != config_fingerprint:
+        st.session_state.config_fingerprint = config_fingerprint
+        st.session_state.conn_status = None
+
+    test_conn_clicked = st.sidebar.button(t("btn_test_connection", "Test Connection"), use_container_width=True)
+
+    if test_conn_clicked:
+        with st.sidebar.spinner(t("conn_testing", "Testing connection...")):
+            st.session_state.conn_status = active_provider.verify_connection()
+
+    # If connection has not been checked, perform a silent non-blocking check
+    if st.session_state.conn_status is None:
+        st.session_state.conn_status = active_provider.verify_connection()
+
+    # Display status indicator
+    status_label = t("status_label", "Connection Status")
+    if st.session_state.conn_status is True:
+        st.sidebar.markdown(f"**{status_label}:** :green[{t('status_connected', 'Connected')}]")
+    else:
+        st.sidebar.markdown(f"**{status_label}:** :red[{t('status_not_connected', 'Not Connected')}]")
+        st.sidebar.error(t("conn_failed", "Connection failed. Please check credentials or URL."))
+
+        # Manual fallback helper for Ollama unavailability
+        if selected_provider == "Ollama":
+            st.sidebar.warning(t("err_ollama_unavailable", "Ollama is currently unreachable. Please check your URL/service or switch providers."))
+            if st.sidebar.button(t("btn_switch_to_gemini", "Switch to Gemini API"), use_container_width=True, key="switch_to_gemini_error"):
+                st.session_state.provider_name = "Gemini API"
+                st.session_state.conn_status = None
+                st.rerun()
+
+    # Disable analysis button if connection status is not verified
+    is_disconnected = (st.session_state.conn_status is not True)
+
+    # ----------------------------------------------------
+    # Ingestion & Hero Title Section
+    # ----------------------------------------------------
+    st.sidebar.markdown("---")
     st.sidebar.title(t("sidebar_title", "Resume Input"))
     sidebar_note_text = t("sidebar_note", "Upload a PDF or DOCX resume, paste the job description, then run the analysis.")
     st.sidebar.markdown(
@@ -212,7 +339,14 @@ def main() -> None:
         placeholder=t("jd_placeholder", "Paste the job description here..."),
     )
 
-    analyze_clicked = st.sidebar.button(t("run_analysis_btn", "Run Analysis"), type="primary", use_container_width=True)
+    analyze_clicked = st.sidebar.button(
+        t("run_analysis_btn", "Run Analysis"),
+        type="primary",
+        use_container_width=True,
+        disabled=is_disconnected
+    )
+
+    inject_styles()
 
     hero_title = t("hero_title", "AI Resume Analyzer")
     hero_desc = t("hero_desc", "Upload a resume, compare it against the job description, and review the match score, skill gaps, and feedback in a compact dashboard.")
@@ -234,10 +368,13 @@ def main() -> None:
         st.session_state.analysis_error = None
     if "resume_text" not in st.session_state:
         st.session_state.resume_text = ""
+    if "analysis_metadata" not in st.session_state:
+        st.session_state.analysis_metadata = None
 
     if analyze_clicked:
         st.session_state.analysis_error = None
         st.session_state.analysis_result = None
+        st.session_state.analysis_metadata = None
 
         if uploaded_file is None:
             st.session_state.analysis_error = t("err_no_resume", "Please upload a resume file before running the analysis.")
@@ -250,11 +387,18 @@ def main() -> None:
                     clipped_resume_text, resume_was_clipped = clip_text(resume_text)
                     clipped_job_description, jd_was_clipped = clip_text(job_description.strip())
                     st.session_state.resume_text = clipped_resume_text
-                    st.session_state.analysis_result = analyze_resume_vs_jd(
+
+                    st.session_state.analysis_result = active_provider.analyze_resume(
                         clipped_resume_text,
                         clipped_job_description,
                         language=st.session_state.language,
                     )
+
+                    st.session_state.analysis_metadata = {
+                        "provider": active_provider.name,
+                        "model": active_provider.model_name,
+                        "inference_type": active_provider.inference_type
+                    }
 
                     if resume_was_clipped or jd_was_clipped:
                         st.info(t("trim_info", "Input text was trimmed to stay within a safer analysis size for Gemini."))
@@ -274,6 +418,21 @@ def main() -> None:
     top_left.metric(t("metric_match_score", "Overall Match Score"), f"{result.match_percentage}%")
     top_right.metric(t("metric_matched_skills", "Matched Skills"), str(len(result.matched_skills)))
     top_mid.metric(t("metric_missing_skills", "Missing Skills"), str(len(result.missing_skills)))
+
+    # Display active provider metadata block prominently in results
+    metadata = st.session_state.get("analysis_metadata")
+    if metadata:
+        st.markdown(
+            f"""
+            <div style="background: rgba(31, 111, 91, 0.06); border: 1px solid rgba(31, 111, 91, 0.15); border-radius: 12px; padding: 0.65rem 1rem; margin-top: 1rem; margin-bottom: 1rem; font-size: 0.9rem;">
+                <strong>{html.escape(t('provider_metadata_label', 'AI Engine Info'))}:</strong> 
+                {html.escape(t('provider_name_label', 'Provider'))}: <code>{html.escape(metadata['provider'])}</code> | 
+                {html.escape(t('model_name_label', 'Model'))}: <code>{html.escape(metadata['model'])}</code> | 
+                {html.escape(t('inference_type_label', 'Inference Type'))}: <code>{html.escape(metadata['inference_type'])}</code>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
     middle_left, middle_right = st.columns(2)
 
@@ -302,6 +461,7 @@ def main() -> None:
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         render_bullets(t("improvements_title", "Improvements"), result.improvements)
         st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 

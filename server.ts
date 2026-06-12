@@ -70,7 +70,7 @@ app.post("/api/parse", async (req, res) => {
 // REST API endpoint to run the AI resume analysis
 app.post("/api/analyze", async (req, res) => {
   try {
-    const { resumeText, jobDescription } = req.body;
+    const { resumeText, jobDescription, language = "en" } = req.body;
 
     if (!resumeText || !resumeText.trim()) {
       return res.status(400).json({ error: "Resume text is empty or missing" });
@@ -81,11 +81,17 @@ app.post("/api/analyze", async (req, res) => {
 
     const ai = getGeminiClient();
 
+    let targetLanguage = "English (US)";
+    if (language === "te") {
+      targetLanguage = "Telugu (తెలుగు)";
+    }
+
     const systemInstruction = `You are a Senior Talent Acquisition Manager, Technical Recruiter, and Applicant Tracking System (ATS) compatibility engineer. 
 Your task is to analyze the user's resume text relative to the target Job Description (JD). 
 Evaluate candidate credentials, structural layout, experience hierarchy, actionable gaps, skill keyword match, and ATS optimization elements.
 Provide constructive, objective, and highly professional advice. 
-You must respond strictly with a valid JSON object matching the requested schema.`;
+You must respond strictly with a valid JSON object matching the requested schema.
+CRITICAL: You must write the values for "strengths", "improvements", "suggested_role", and "detailed_analysis" entirely in the selected language: ${targetLanguage}. Ensure all feedback, headings, and detailed analysis in "detailed_analysis" are written in fluent, grammatically correct ${targetLanguage}. Use the native script where appropriate (e.g., Telugu letters for Telugu translations).`;
 
     const userPrompt = `Target Job Description:
 ${jobDescription}
@@ -93,7 +99,7 @@ ${jobDescription}
 Candidate Resume:
 ${resumeText}
 
-Analyze this candidate and respond with a complete, structured analysis using the defined response schema. Ensure the match score is a realistic percentage (0-100) reflecting actual skill matching and experience levels. Give precise keywords that are matched, and key high-priority missing items. Detailed analysis should incorporate ATS formatting suggestions in visual Markdown.`;
+Analyze this candidate and respond with a complete, structured analysis using the defined response schema. Ensure the match score is a realistic percentage (0-100) reflecting actual skill matching and experience levels. Give precise keywords that are matched, and key high-priority missing items. Detailed analysis should incorporate ATS formatting suggestions in visual Markdown. Remember to provide all textual analysis (strengths, improvements, suggested_role, and detailed_analysis) in ${targetLanguage}.`;
 
     const responseSchema = {
       type: Type.OBJECT,

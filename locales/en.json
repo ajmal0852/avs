@@ -40,5 +40,8 @@
   "inference_type_label": "Inference Type",
   "conn_testing": "Testing connection...",
   "conn_success": "Connection successful!",
-  "conn_failed": "Connection failed. Please check credentials or URL."
+  "conn_failed": "Connection failed. Please check credentials or URL.",
+  "feedback_title": "Feedback",
+  "feedback_desc": "Help us improve the AI Resume Analyzer by sharing your feedback.",
+  "btn_submit_feedback": "Submit Feedback"
 }

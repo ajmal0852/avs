@@ -20,6 +20,7 @@ st.set_page_config(
 )
 
 MAX_ANALYSIS_CHARS = 30000
+FEEDBACK_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSd1ovv9LGmd7jGTZtWr5wsiDmj8m-BsFzZK7J8YIK2oo3bv6Q/viewform?usp=header"
 
 
 def inject_styles() -> None:
@@ -346,7 +347,23 @@ def main() -> None:
         disabled=is_disconnected
     )
 
+    # ----------------------------------------------------
+    # Feedback Section
+    # ----------------------------------------------------
+    st.sidebar.markdown("---")
+    st.sidebar.subheader(t("feedback_title", "Feedback"))
+    st.sidebar.markdown(
+        f"<div class='sidebar-note'>{html.escape(t('feedback_desc', 'Help us improve the AI Resume Analyzer by sharing your feedback.'))}</div>",
+        unsafe_allow_html=True,
+    )
+    st.sidebar.link_button(
+        t("btn_submit_feedback", "Submit Feedback"),
+        FEEDBACK_FORM_URL,
+        use_container_width=True
+    )
+
     inject_styles()
+
 
     hero_title = t("hero_title", "AI Resume Analyzer")
     hero_desc = t("hero_desc", "Upload a resume, compare it against the job description, and review the match score, skill gaps, and feedback in a compact dashboard.")

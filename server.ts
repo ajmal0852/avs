@@ -3,10 +3,9 @@ import path from "path";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
-// @ts-ignore
-import pdfParse from "pdf-parse";
-import mammoth from "mammoth";
 
+import mammoth from "mammoth";
+import { PDFParse } from "pdf-parse";
 dotenv.config();
 
 const app = express();
@@ -50,8 +49,13 @@ app.post("/api/parse", async (req, res) => {
     const extension = fileName ? path.extname(fileName).toLowerCase() : "";
 
     if (extension === ".pdf") {
-      const parsed = await pdfParse(buffer);
-      extractedText = parsed.text || "";
+      const parser = new PDFParse({ data: buffer });
+      try {
+        const parsed = await parser.getText();
+        extractedText = parsed.text || "";
+      } finally {
+        await parser.destroy();
+      }
     } else if (extension === ".docx") {
       const parsed = await mammoth.extractRawText({ buffer });
       extractedText = parsed.value || "";

@@ -154,14 +154,33 @@ def _coerce_analysis(response: Any) -> ResumeAnalysis:
     return ResumeAnalysis.model_validate_json(text)
 
 
-def analyze_resume_vs_jd(resume_text: str, job_description: str) -> ResumeAnalysis:
+def analyze_resume_vs_jd(resume_text: str, job_description: str, language: str = "en") -> ResumeAnalysis:
     """Analyze a resume against a job description and return a structured result."""
     try:
         client = _get_client()
+
+        target_language = "English (US)"
+        if language == "te":
+            target_language = "Telugu (తెలుగు)"
+        elif language == "hi":
+            target_language = "Hindi (हिन्दी)"
+
+        system_instruction = (
+            "You are a Senior Talent Acquisition Manager, Technical Recruiter, and Applicant Tracking System (ATS) compatibility engineer. "
+            "Your task is to analyze the user's resume text relative to the target Job Description (JD). "
+            "Evaluate candidate credentials, structural layout, experience hierarchy, actionable gaps, skill keyword match, and ATS optimization elements. "
+            "Provide constructive, objective, and highly professional advice. "
+            "You must respond strictly with a valid JSON object matching the requested schema.\n"
+            f"CRITICAL: You must write all textual content within 'strengths' and 'improvements' arrays entirely in the selected language: {target_language}. "
+            f"Ensure all feedback, descriptions, and suggestions are written in fluent, grammatically correct {target_language}. "
+            "Use the native script where appropriate (e.g., Hindi/Devanagari letters for Hindi, Telugu letters for Telugu)."
+        )
+
         response = client.models.generate_content(
             model=MODEL_NAME,
             contents=_analysis_prompt(resume_text, job_description),
             config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
                 response_mime_type="application/json",
                 response_schema=ResumeAnalysis,
                 temperature=0.2,
@@ -173,4 +192,4 @@ def analyze_resume_vs_jd(resume_text: str, job_description: str) -> ResumeAnalys
     except errors.APIError as exc:
         raise RuntimeError(f"Gemini API error: {exc}") from exc
     except Exception as exc:
-        raise RuntimeError(f"Failed to analyze resume: {exc}") from exc
+        raise RuntimeError(f"Failed to analyze resume: {exc}") from exc

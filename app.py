@@ -7,6 +7,7 @@ import streamlit as st
 
 from analyzer import ResumeAnalysis, analyze_resume_vs_jd
 from parser import extract_text
+from i18n import translate as _
 
 
 st.set_page_config(
@@ -129,7 +130,8 @@ def inject_styles() -> None:
 def render_tag_group(items: Iterable[str], css_class: str = "") -> None:
     clean_items = [item.strip() for item in items if item and item.strip()]
     if not clean_items:
-        st.caption("No items to display.")
+        lang = st.session_state.get("language", "en")
+        st.caption(_(lang, "no_items", "No items to display."))
         return
 
     tags = []
@@ -144,7 +146,8 @@ def render_bullets(title: str, items: Iterable[str]) -> None:
     clean_items = [item.strip() for item in items if item and item.strip()]
     st.markdown(f"**{title}**")
     if not clean_items:
-        st.caption("No items to display.")
+        lang = st.session_state.get("language", "en")
+        st.caption(_(lang, "no_items", "No items to display."))
         return
 
     st.markdown("\n".join(f"- {html.escape(item)}" for item in clean_items))
@@ -159,33 +162,65 @@ def clip_text(text: str, limit: int = MAX_ANALYSIS_CHARS) -> tuple[str, bool]:
 
 
 def main() -> None:
+    # Set up session state language
+    if "language" not in st.session_state:
+        st.session_state.language = "en"
+
+    # Define language selector dropdown in sidebar using native names
+    lang_map = {
+        "English": "en",
+        "हिन्दी": "hi",
+        "తెలుగు": "te"
+    }
+
+    current_lang_code = st.session_state.language
+    current_lang_name = [name for name, code in lang_map.items() if code == current_lang_code][0]
+
+    selected_lang_name = st.sidebar.selectbox(
+        "Language / भाषा / భాష",
+        options=list(lang_map.keys()),
+        index=list(lang_map.keys()).index(current_lang_name)
+    )
+
+    selected_lang_code = lang_map[selected_lang_name]
+    if selected_lang_code != st.session_state.language:
+        st.session_state.language = selected_lang_code
+        st.rerun()
+
+    # Short utility helper for translated strings
+    def t(key: str, default: str = "") -> str:
+        return _(st.session_state.language, key, default)
+
     inject_styles()
 
-    st.sidebar.title("Resume Input")
+    st.sidebar.title(t("sidebar_title", "Resume Input"))
+    sidebar_note_text = t("sidebar_note", "Upload a PDF or DOCX resume, paste the job description, then run the analysis.")
     st.sidebar.markdown(
-        "<div class='sidebar-note'>Upload a PDF or DOCX resume, paste the job description, then run the analysis.</div>",
+        f"<div class='sidebar-note'>{html.escape(sidebar_note_text)}</div>",
         unsafe_allow_html=True,
     )
 
     uploaded_file = st.sidebar.file_uploader(
-        "Resume file",
+        t("resume_file_label", "Resume file"),
         type=["pdf", "docx"],
         accept_multiple_files=False,
-        help="Supported formats: PDF and DOCX.",
+        help=t("resume_file_help", "Supported formats: PDF and DOCX."),
     )
     job_description = st.sidebar.text_area(
-        "Job description",
+        t("jd_label", "Job description"),
         height=320,
-        placeholder="Paste the job description here...",
+        placeholder=t("jd_placeholder", "Paste the job description here..."),
     )
 
-    analyze_clicked = st.sidebar.button("Run Analysis", type="primary", use_container_width=True)
+    analyze_clicked = st.sidebar.button(t("run_analysis_btn", "Run Analysis"), type="primary", use_container_width=True)
 
+    hero_title = t("hero_title", "AI Resume Analyzer")
+    hero_desc = t("hero_desc", "Upload a resume, compare it against the job description, and review the match score, skill gaps, and feedback in a compact dashboard.")
     st.markdown(
-        """
+        f"""
         <div class="hero">
-            <h1>AI Resume Analyzer</h1>
-            <p>Upload a resume, compare it against the job description, and review the match score, skill gaps, and feedback in a compact dashboard.</p>
+            <h1>{html.escape(hero_title)}</h1>
+            <p>{html.escape(hero_desc)}</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -205,12 +240,12 @@ def main() -> None:
         st.session_state.analysis_result = None
 
         if uploaded_file is None:
-            st.session_state.analysis_error = "Please upload a resume file before running the analysis."
+            st.session_state.analysis_error = t("err_no_resume", "Please upload a resume file before running the analysis.")
         elif not job_description.strip():
-            st.session_state.analysis_error = "Please enter a job description before running the analysis."
+            st.session_state.analysis_error = t("err_no_jd", "Please enter a job description before running the analysis.")
         else:
             try:
-                with st.spinner("Extracting resume text and analyzing match..."):
+                with st.spinner(t("spinner_text", "Extracting resume text and analyzing match...")):
                     resume_text = extract_text(uploaded_file)
                     clipped_resume_text, resume_was_clipped = clip_text(resume_text)
                     clipped_job_description, jd_was_clipped = clip_text(job_description.strip())
@@ -218,10 +253,11 @@ def main() -> None:
                     st.session_state.analysis_result = analyze_resume_vs_jd(
                         clipped_resume_text,
                         clipped_job_description,
+                        language=st.session_state.language,
                     )
 
                     if resume_was_clipped or jd_was_clipped:
-                        st.info("Input text was trimmed to stay within a safer analysis size for Gemini.")
+                        st.info(t("trim_info", "Input text was trimmed to stay within a safer analysis size for Gemini."))
             except Exception as exc:
                 st.session_state.analysis_error = str(exc)
 
@@ -231,25 +267,25 @@ def main() -> None:
     result: ResumeAnalysis | None = st.session_state.analysis_result
 
     if result is None:
-        st.info("Run an analysis to see the match score, matched skills, missing skills, and feedback.")
+        st.info(t("info_run_analysis", "Run an analysis to see the match score, matched skills, missing skills, and feedback."))
         return
 
     top_left, top_right, top_mid = st.columns([1.1, 1, 1])
-    top_left.metric("Overall Match Score", f"{result.match_percentage}%")
-    top_right.metric("Matched Skills", str(len(result.matched_skills)))
-    top_mid.metric("Missing Skills", str(len(result.missing_skills)))
+    top_left.metric(t("metric_match_score", "Overall Match Score"), f"{result.match_percentage}%")
+    top_right.metric(t("metric_matched_skills", "Matched Skills"), str(len(result.matched_skills)))
+    top_mid.metric(t("metric_missing_skills", "Missing Skills"), str(len(result.missing_skills)))
 
     middle_left, middle_right = st.columns(2)
 
     with middle_left:
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown("### Matched Skills")
+        st.markdown(f"### {html.escape(t('section_matched_skills', 'Matched Skills'))}")
         render_tag_group(result.matched_skills)
         st.markdown("</div>", unsafe_allow_html=True)
 
     with middle_right:
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown("### Missing Skills")
+        st.markdown(f"### {html.escape(t('section_missing_skills', 'Missing Skills'))}")
         render_tag_group(result.missing_skills, css_class="missing")
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -259,13 +295,14 @@ def main() -> None:
 
     with bottom_left:
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        render_bullets("Strengths", result.strengths)
+        render_bullets(t("strengths_title", "Strengths"), result.strengths)
         st.markdown("</div>", unsafe_allow_html=True)
 
     with bottom_right:
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        render_bullets("Improvements", result.improvements)
+        render_bullets(t("improvements_title", "Improvements"), result.improvements)
         st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 if __name__ == "__main__":

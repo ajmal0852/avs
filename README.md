@@ -7,7 +7,17 @@ An intelligent, full-stack AI Resume Analyzer powered by Google Gemini 3.5 Flash
 - **Automated Resume Parsing**: Extracts content from PDF and Word (.docx) formats on the server.
 - **Deep Skill Matrix**: Extracts matching and missing technical/soft skills from both the resume and the target description.
 - **Detailed Actionable Advice**: Gives concrete recommendations to improve format, phrasing, and match density.
+- **Internationalization (i18n) & Localization (l10n)**: Full native user interface and AI analysis support for **English**, **Hindi (हिन्दी)**, and **Telugu (తెలుగు)**.
 - **100% GitLab Compliance Active**: Validated using Docker, Biome, Knip, Ruff, Gitleaks, Mypy, and automated pipeline specifications.
+
+## Internationalization & Localization (i18n / l10n)
+
+The Streamlit frontend and the Gemini backend are fully localized:
+- **UI Locales**: Located under [locales/](file:///c:/Users/ASUS/hackathon2/locales) containing [en.json](file:///c:/Users/ASUS/hackathon2/locales/en.json), [hi.json](file:///c:/Users/ASUS/hackathon2/locales/hi.json), and [te.json](file:///c:/Users/ASUS/hackathon2/locales/te.json).
+- **Translation Utility**: Managed by [i18n.py](file:///c:/Users/ASUS/hackathon2/i18n.py) with dynamic translation lookup and automatic English fallback.
+- **Language Selector**: Native selectors in the Streamlit sidebar (English, हिन्दी, తెలుగు) persisted through `st.session_state`.
+- **Localized Gemini Output**: Evaluation feedback, strengths, and recommendations are returned directly in the target language.
+
 
 ## Installation
 

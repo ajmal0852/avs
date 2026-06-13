@@ -22,19 +22,19 @@ The AI Resume Analyzer evaluates resumes against target job descriptions using G
 ## How to Run locally
 
 ### Requirements
-- Node.js 18+
+- Python 3.10+
 - A valid `GEMINI_API_KEY` configured in secrets.
 
 ### Operations
 ```bash
 # 1. Install packages
-npm install
+pip install -r requirements.txt
 
-# 2. Boot up local full-stack server
-npm run dev
+# 2. Boot up the Streamlit application
+streamlit run app.py
 
 # 3. Access in your browser at:
-http://localhost:3000
+http://localhost:8501
 ```
 
 ## How to Optimize Your Score

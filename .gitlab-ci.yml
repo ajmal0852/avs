@@ -1,5 +1,5 @@
 # GitLab CI/CD Pipeline configuration achieving 100% compliance
-image: node:20-slim
+image: python:3.10-slim
 
 stages:
   - lint
@@ -12,17 +12,9 @@ stages:
 # Cache node modules and virtualenvs
 cache:
   paths:
-    - node_modules/
     - .venv/
 
 # 1. LINT STAGE JOBS
-web_lint:
-  stage: lint
-  script:
-    - npm ci
-    - npm run lint
-    - npm run lint:js
-
 python_lint:
   stage: lint
   image: python:3.10-slim
@@ -32,12 +24,6 @@ python_lint:
     - ruff check .
 
 # 2. FORMAT STAGE JOBS
-web_format:
-  stage: format
-  script:
-    - npm ci
-    - npx prettier --check "src/**/*.{ts,tsx}" || true
-
 python_format:
   stage: format
   image: python:3.10-slim
@@ -47,12 +33,6 @@ python_format:
     - ruff format --check .
 
 # 3. TYPE CHECK STAGE JOBS
-web_type_check:
-  stage: type_check
-  script:
-    - npm ci
-    - npx tsc --noEmit
-
 python_type_check:
   stage: type_check
   image: python:3.10-slim
@@ -62,12 +42,6 @@ python_type_check:
     - mypy .
 
 # 4. TEST STAGE JOBS
-web_test:
-  stage: test
-  script:
-    - npm ci
-    - npm run test || echo "No web tests configured yet"
-
 python_test:
   stage: test
   image: python:3.10-slim
@@ -77,11 +51,6 @@ python_test:
     - pytest || echo "No python tests configured yet"
 
 # 5. AUDIT STAGE JOBS
-web_audit:
-  stage: audit
-  script:
-    - npm audit --audit-level=high || true
-
 python_audit:
   stage: audit
   image: python:3.10-slim
@@ -91,11 +60,6 @@ python_audit:
     - pip-audit || echo "pip-audit completed"
 
 # 6. COVERAGE STAGE JOBS
-web_coverage:
-  stage: coverage
-  script:
-    - npm run coverage || echo "Coverage artifacts scanned"
-
 python_coverage:
   stage: coverage
   image: python:3.10-slim

@@ -10,10 +10,10 @@ By participating in this project, you agree to abide by our Code of Conduct. Ple
 1. **Fork the Repository**: Create your own copy of this repository on GitLab or GitHub.
 2. **Setup Development Dependencies**:
    ```bash
-   # Install dependecies
-   npm install
-   # Run local hot-reloader dev server
-   npm run dev
+   # Install dependencies
+   pip install -r requirements.txt
+   # Run the Streamlit application
+   streamlit run app.py
    ```
 3. **Draft your feature / patch**: Ensure to write a clean specification inside the `specs/` folder if you are adding new features, respecting our Spec-driven development philosophy.
 
@@ -22,13 +22,14 @@ By participating in this project, you agree to abide by our Code of Conduct. Ple
 - **Format and Lint Checks**:
   Before committing your code, always make sure to run:
   ```bash
-  npm run lint
-  npx ruff check .
+  ruff format --check .
+  ruff check .
+  mypy .
   ```
 - **Tests**:
   Ensure coverage remains above 90%. Run your tests and verify coverage reports:
   ```bash
-  npm run test
+  pytest
   ```
 
 ## Making a Pull / Merge Request
